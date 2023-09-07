@@ -1,5 +1,8 @@
 # Remote Jupyter Session Management Tool
 
+![Crates.io](https://img.shields.io/crates/v/remote_jupyter) ![Crates.io (latest)](https://img.shields.io/crates/dv/remote_jupyter)
+
+
 ![a screenshot of the rjy command line tool](https://github.com/vsbuffalo/remote_jupyter/blob/main/screenshot.png?raw=true)
 
 `rjy` Rust command-line tool that manages SSH tunneling for working with
