@@ -43,7 +43,7 @@ Some examples:
   Drop the cached sessions (and disconnect them)
   $ rjy drop <key> [--all]
 
-See 'rjy --help' or `sdf <subcommand> --help`. Or, see the README at: 
+See 'rjy --help' or 'rjy <subcommand> --help'. Or, see the README at: 
 https://github.com/vsbuffalo/remote_jupyter/.
 
 Please submit bugs or feature requests to: 
