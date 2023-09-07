@@ -18,6 +18,39 @@ use std::os::unix::fs::PermissionsExt;
 
 const CACHE: &str = ".remote_jupyter_sessions";
 
+const INFO: &str = "\
+Remote Jupyter: Manage Remote Jupyter Sessions with SSH Tunneling
+usage: rjy [--help] <subcommand>
+
+Note: it is *highly* recommended you put the remote servers 
+you interact with in ~/.ssh/config and use ssh-add. See the 
+README for more information.
+
+Some examples:
+
+  Create a new session via the Jupyter link an alias to the host:
+  $ rjy new http://localhost:8906/lab?token=5e2f[...]8467 ponderosa
+
+  List all active sessions:
+  $ rjy list
+
+  Disconnect a session (don't specify key to disconnect all):
+  $ rjy dc <key>
+
+  Reconnect a session (don't specify key to reconnect all):
+  $ rjy rc <key>
+
+  Drop the cached sessions (and disconnect them)
+  $ rjy drop <key> [--all]
+
+See 'rjy --help' or `sdf <subcommand> --help`. Or, see the README at: 
+https://github.com/vsbuffalo/remote_jupyter/.
+
+Please submit bugs or feature requests to: 
+https://github.com/vsbuffalo/remote_jupyter/issues.
+";
+
+
 pub enum ConnectionStatus {
     Connected,
     Disconnected
@@ -339,6 +372,7 @@ impl ConnectionCache {
 
 #[derive(Parser)]
 #[clap(name = "rjy")]
+#[clap(about = INFO)]
 struct Cli {
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
@@ -432,6 +466,7 @@ fn run() -> Result<()> {
             sessions.save()
         },
         None => {
+            println!("{}\n", INFO);
             std::process::exit(1);
         }
     }
