@@ -1,5 +1,5 @@
 use anyhow::{anyhow,Result};
-use std::fs::File;
+use std::fs::{File, set_permissions, Permissions};
 use std::io::{Read, Write};
 use std::env;
 use std::collections::{HashMap};
@@ -12,6 +12,7 @@ use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 use url::Url;
 use prettytable::{Table, Row, Cell, format};
+use std::os::unix::fs::PermissionsExt;
  
 #[macro_use] extern crate prettytable;
 
@@ -121,6 +122,14 @@ impl Connection {
         }
     }
 
+    pub fn is_alive(&self) -> bool {
+        let pid = match self.pid {
+            None => return false,
+            Some(p) => Pid::from_raw(p as i32)
+        };
+        is_pid_running(pid)
+   }
+
     pub fn new_connection(host: &str, port: u16) -> Result<u32> {
         let ssh_command = format!(
             "ssh -Y -N -L localhost:{port}:localhost:{port} {host}",
@@ -133,7 +142,6 @@ impl Connection {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
-        println!("Created new session {}:{}.", host, port);
         Ok(child.id())
     }
 
@@ -151,7 +159,7 @@ impl Connection {
                     let pid = Pid::from_raw(p as i32);
                     // Send the SIGTERM signal
                     kill(pid, Signal::SIGTERM)?;
-                    println!("Disconnected '{}:{}' (Process ID={}).", self.host, self.port, p);
+                    println!("Disconnected session {}:{} (Process ID={}).", self.host, self.port, p);
                 },
                 ConnectionStatus::Disconnected => {
                     println!("Connection has already closed.");
@@ -241,9 +249,12 @@ impl ConnectionCache {
 
     pub fn reconnect(&mut self, key: &str) -> Result<()> {
         let conn = self.remove_connection(key)?;
+        if conn.is_alive() {
+            return Ok(())
+        }
         let new_conn = Connection::new(&conn.link, &conn.host)?;
         self.connections.insert(key.to_string(), new_conn);
-        println!("Reconnected {}.", key);
+        println!("Reconnected session {}.", key);
         Ok(())
     }
 
@@ -264,6 +275,11 @@ impl ConnectionCache {
         let mut file = File::create(&cache_path)
             .map_err(|err| anyhow::anyhow!("Failed to open file '{:?}': {}", cache_path, err))?;
 
+        // set the permissions such that only user has read/write
+        let permissions = Permissions::from_mode(0o600);
+          set_permissions(&cache_path, permissions)
+        .map_err(|err| anyhow::anyhow!("Failed to set file permissions: {}", err))?;
+
         // Write the serialized data to the file
         write!(file, "{}", serialized_cache)
             .map_err(|err| anyhow::anyhow!("Failed to write the remote Jupyter cache: {}", err))?;
@@ -279,12 +295,13 @@ impl ConnectionCache {
         }
         let connection = Connection::new(link, host)?;
         self.connections.insert(connection.key(), connection);
+        println!("Created new session {}:{}.", host, url_parts.port);
         Ok(())
     }
     pub fn drop_connection(&mut self, key: &str) -> Result<()> {
         let mut conn = match self.connections.remove(key) {
             None => {
-                return Err(anyhow!("Could not find a remote Jupyter seession with key '{}'.", &key));
+                return Err(anyhow!("Could not find a remote Jupyter session with key '{}'.", &key));
             }
             Some(conn) => conn
         };
@@ -292,7 +309,7 @@ impl ConnectionCache {
     }
     pub fn remove_connection(&mut self, key: &str) -> Result<Connection> {
         match self.connections.remove(key) {
-            None => Err(anyhow!("Could not find a remote Jupyter seession with key '{}'.", &key)),
+            None => Err(anyhow!("Could not find a remote Jupyter session with key '{}'.", &key)),
             Some(conn) => Ok(conn)
         }
     }
@@ -305,7 +322,7 @@ impl ConnectionCache {
     }
     pub fn disconnect(&mut self, key: &str) -> Result<()> {
         let conn = match self.connections.get_mut(key) {
-            None => Err(anyhow!("Could not find a remote Jupyter seession with key '{}'.", &key)),
+            None => Err(anyhow!("Could not find a remote Jupyter session with key '{}'.", &key)),
             Some(conn) => Ok(conn)
         }?;
         conn.kill_connection()?;
