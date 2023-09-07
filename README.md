@@ -86,8 +86,5 @@ warranted. Do not use on untrusted systems.
 
 ## Install
     
-    git clone git://github.com/vsbuffalo/remote_jupyter
-    cd remote_jupyter
-    python setup.py install
-
+    $ cargo install remote_jupyter
 
