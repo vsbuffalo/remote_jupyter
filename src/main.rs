@@ -282,9 +282,6 @@ impl ConnectionCache {
 
     pub fn reconnect(&mut self, key: &str) -> Result<()> {
         let conn = self.remove_connection(key)?;
-        if conn.is_alive() {
-            return Ok(())
-        }
         let new_conn = Connection::new(&conn.link, &conn.host)?;
         self.connections.insert(key.to_string(), new_conn);
         println!("Reconnected session {}.", key);
